@@ -1,5 +1,11 @@
-import pickle
+from utils import create_dirs, fix_seeds
+from train import train
 
-with open('data/java14m/java14m.dict.c2v', mode='rb') as f:
-    a = pickle.load(f)
-    print(a)
+
+if __name__ == '__main__':
+    # args, parser = parse_args()
+
+    fix_seeds(1234)
+    create_dirs()
+
+    train()
