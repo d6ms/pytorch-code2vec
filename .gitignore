@@ -1,2 +1,6 @@
 code2vec
 data
+logs
+models
+__pycache__
+run.py
