@@ -1,4 +1,4 @@
-from datetime import datetime
+import logging
 
 import numpy as np
 import pickle
@@ -17,6 +17,8 @@ from data import BatchDataLoader, Vocabulary
 
 
 def train(epochs, lr=0.001):
+    logging.info('start training')
+
     # prepare dataloaders
     with open(f'{config.DATA_PATH}/java14m.dict.c2v', 'rb') as f:
         word2count = pickle.load(f)
@@ -62,7 +64,7 @@ def train_epoch(model, optimizer, loss_fn, dataloader, epoch_idx):
         loss.backward()
         optimizer.step()
 
-        print(f'{datetime.now()} [epoch {epoch_idx} batch {i}] loss: {loss.item()}')
+        logging.info(f'[epoch {epoch_idx} batch {i}] loss: {loss.item()}')
 
 def evaluate(model, history, loss_fn, dataloader, epoch_idx):
     model.eval()
@@ -84,7 +86,7 @@ def evaluate(model, history, loss_fn, dataloader, epoch_idx):
 
     history['eval_loss'].append(total_loss / data_cnt)
     history['eval_acc'].append(total_correct / data_cnt)
-    print(f'{datetime.now()} [epoch {epoch_idx} eval] loss: {total_loss / data_cnt}, accuracy: {total_correct / data_cnt}')
+    logging.info(f'[epoch {epoch_idx} eval] loss: {total_loss / data_cnt}, accuracy: {total_correct / data_cnt}')
 
 def save_history(history):
     for metric, values in history.items():

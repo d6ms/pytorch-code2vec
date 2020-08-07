@@ -1,7 +1,10 @@
+import sys
+import logging
+import traceback
 from argparse import ArgumentParser
 
 import config
-from utils import create_dirs, fix_seeds
+from utils import create_dirs, fix_seeds, configure_logger
 fix_seeds(1234)
 from train import train
 
@@ -20,8 +23,15 @@ if __name__ == '__main__':
     config.BATCH_SIZE = args.batch_size
 
     create_dirs()
+    configure_logger()
 
-    if args.train:
-        train(args.epochs, lr=args.lr)
-    else:
+    if not any([args.train]):
         parser.print_help()
+        exit(1)
+
+    try:
+        if args.train:
+            train(args.epochs, lr=args.lr)
+    except Exception as e:
+        sys.stderr.write(traceback.format_exc())
+        logging.exception(e)

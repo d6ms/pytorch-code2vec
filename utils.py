@@ -1,5 +1,7 @@
 import os
 import random
+import logging
+from datetime import datetime
 
 import numpy as np
 import torch
@@ -18,3 +20,11 @@ def create_dirs():
     for dir in [config.MODEL_PATH, config.LOG_PATH]:
         if not os.path.exists(dir):
             os.makedirs(dir)
+
+def configure_logger():
+    timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    logging.basicConfig(
+        filename=f'{config.LOG_PATH}/code2vec-{timestamp}.log', 
+        level=logging.DEBUG,
+        format='%(asctime)s [%(levelname)s] %(message)s'
+    )
