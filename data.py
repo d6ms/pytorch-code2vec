@@ -24,6 +24,9 @@ class Vocabulary(object):
         else:
             return self.idx2word[idx]
 
+    def __len__(self):
+        return len(self.word2idx)
+
 
 # PyTorch の Dataset, DataLoader を使う場合はデータへのランダムアクセスを行う必要があるが、
 # 今回使用するデータは非常に大きなテキストファイルであり、ランダムアクセスが実際上不可能であるため、
@@ -69,14 +72,14 @@ class BatchDataLoader(object):
         return samples
 
     def __tensorize(self, samples):
-        name = torch.zeros(config.BATCH_SIZE).long()
+        label = torch.zeros(config.BATCH_SIZE).long()
         x_s = torch.zeros((config.BATCH_SIZE, config.MAX_LENGTH)).long()
         path = torch.zeros((config.BATCH_SIZE, config.MAX_LENGTH)).long()
         x_t = torch.zeros((config.BATCH_SIZE, config.MAX_LENGTH)).long()
         mask = torch.ones((config.BATCH_SIZE, config.MAX_LENGTH)).float()
 
         for i, (method_name, ctxs, n_ctxs) in enumerate(samples):
-            name[i] = self.label_vocab.lookup_idx(method_name)
+            label[i] = self.label_vocab.lookup_idx(method_name)
             tmp_x_s, tmp_path, tmp_x_t = zip(*[(
                 self.word_vocab.lookup_idx(s),
                 self.path_vocab.lookup_idx(p),
@@ -85,4 +88,4 @@ class BatchDataLoader(object):
             x_s[i, :], path[i, :], x_t[i, :] = torch.LongTensor(tmp_x_s), torch.LongTensor(tmp_path), torch.LongTensor(tmp_x_t)
             mask[i, n_ctxs:] = 0
 
-        return name, x_s, path, x_t, mask
+        return label, x_s, path, x_t, mask
