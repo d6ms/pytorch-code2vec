@@ -16,5 +16,5 @@ $ python code2vec.py --train --batch-size 2
 for training
 
 ```
-$ python code2vec.py --train
+$ nohup python code2vec.py --train &
 ```

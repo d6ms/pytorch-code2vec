@@ -24,7 +24,6 @@ def train(epochs, lr=0.001):
         word2count = pickle.load(f)
         path2count = pickle.load(f)
         label2count = pickle.load(f)
-        # n_training_examples = pickle.load(f)
     word_vocab = Vocabulary(word2count.keys())
     path_vocab = Vocabulary(path2count.keys())
     label_vocab = Vocabulary(label2count.keys())
@@ -37,17 +36,20 @@ def train(epochs, lr=0.001):
     loss_fn = CrossEntropyLoss().to(config.DEVICE)
 
     # train
-    history = {'eval_loss': list(), 'eval_acc': list()}
+    history = {'eval_loss': list(), 'eval_acc': list(), 'eval_precision': list(), 'eval_recall': list(), 'eval_f1': list()}
     for epoch in range(1, epochs + 1):
-        train_epoch(model, optimizer, loss_fn, trainloader, epoch)
-        evaluate(model, history, loss_fn, evalloader, epoch)
+        def after_batch(batch_idx):
+            if batch_idx % 1000 == 0:
+                evaluate(model, history, loss_fn, evalloader, epoch, label_vocab)
+                if (batch_idx == 1000 and epoch == 1) or history['eval_acc'][-1] > max(history['eval_acc'][:-1]):
+                    torch.save(model.state_dict(), f'{config.MODEL_PATH}/code2vec.ckpt')
+                save_history(history)
+                model.train()
 
-        # save model and history
-        if epoch == 1 or history['eval_acc'][-1] > max(history['eval_acc'][:-1]):
-            torch.save(model.state_dict(), f'{config.MODEL_PATH}/code2vec.ckpt')
-        save_history(history)
+        train_epoch(model, optimizer, loss_fn, trainloader, epoch, label_vocab, after_batch_callback=after_batch)
+        evaluate(model, history, loss_fn, evalloader, epoch, label_vocab)
 
-def train_epoch(model, optimizer, loss_fn, dataloader, epoch_idx):
+def train_epoch(model, optimizer, loss_fn, dataloader, epoch_idx, label_vocab, after_batch_callback=None):
     model.train()
     for i, (label, x_s, path, x_t, mask) in enumerate(dataloader, 1):
         # label: 正解ラベルのメソッド名を示すindex (batch_size,)
@@ -60,16 +62,21 @@ def train_epoch(model, optimizer, loss_fn, dataloader, epoch_idx):
         optimizer.zero_grad()
         out = model(x_s, path, x_t)
         loss = loss_fn(out, label)
+        accuracy = compute_accuracy(out, label)
+        precision, recall, f1 = compute_f1(out, label, label_vocab)
 
         loss.backward()
         optimizer.step()
 
-        logging.info(f'[epoch {epoch_idx} batch {i}] loss: {loss.item()}')
+        logging.info(f'[epoch {epoch_idx} batch {i}] loss: {loss.item()}, accuracy: {accuracy}, precision: {precision}, recall: {recall}, f1: {f1}')
 
-def evaluate(model, history, loss_fn, dataloader, epoch_idx):
+        if after_batch_callback is not None:
+            after_batch_callback(i)
+
+def evaluate(model, history, loss_fn, dataloader, epoch_idx, label_vocab):
     model.eval()
 
-    total_loss, total_correct, data_cnt = 0, 0, 0
+    total_loss, total_acc, total_precision, total_recall, total_f1, batch_cnt, data_cnt = 0, 0, 0, 0, 0, 0, 0
     with torch.no_grad():
         for i, (label, x_s, path, x_t, mask) in enumerate(dataloader, 1):
             label, x_s, path, x_t = label.to(config.DEVICE), x_s.to(config.DEVICE), path.to(config.DEVICE), x_t.to(config.DEVICE)
@@ -77,16 +84,56 @@ def evaluate(model, history, loss_fn, dataloader, epoch_idx):
             out = model(x_s, path, x_t)
             loss = loss_fn(out, label)
 
-            predicted = out.max(1, keepdim=True)[1]
-            n_correct = predicted.eq(label.view_as(predicted)).sum()
-
             data_cnt += label.shape[0]
             total_loss += loss.item() * label.shape[0]
-            total_correct += n_correct
+            total_acc += compute_accuracy(out, label)
+            precision, recall, f1 = compute_f1(out, label, label_vocab)
+            total_precision += precision
+            total_recall += recall
+            total_f1 += f1
+            batch_cnt += 1
 
     history['eval_loss'].append(total_loss / data_cnt)
-    history['eval_acc'].append(total_correct / data_cnt)
-    logging.info(f'[epoch {epoch_idx} eval] loss: {total_loss / data_cnt}, accuracy: {total_correct / data_cnt}')
+    history['eval_acc'].append(total_acc / batch_cnt)
+    history['eval_precision'].append(total_precision / batch_cnt)
+    history['eval_recall'].append(total_recall / batch_cnt)
+    history['eval_f1'].append(total_f1 / batch_cnt)
+    logging.info(f'[epoch {epoch_idx} eval] loss: {total_loss / data_cnt}, accuracy: {total_acc / batch_cnt}, precision: {total_precision / batch_cnt}, recall: {total_recall / batch_cnt}, f1: {total_f1 / batch_cnt}')
+
+def compute_accuracy(fx, y):
+    pred_idxs = fx.max(1, keepdim=True)[1]
+    correct = pred_idxs.eq(y.view_as(pred_idxs)).sum()
+    acc = correct.float() / pred_idxs.shape[0]
+    return acc
+
+def compute_f1(fx, y, label_vocab):
+    pred_idxs = fx.max(1, keepdim=True)[1]
+    pred_names = [label_vocab.lookup_word(i.item()) for i in pred_idxs]
+    original_names = [label_vocab.lookup_word(i.item()) for i in y]
+    true_positive, false_positive, false_negative = 0, 0, 0
+    for p, o in zip(pred_names, original_names):
+        predicted_subtokens = p.split('|')
+        original_subtokens = o.split('|')
+        for subtok in predicted_subtokens:
+            if subtok in original_subtokens:
+                true_positive += 1
+            else:
+                false_positive += 1
+        for subtok in original_subtokens:
+            if not subtok in predicted_subtokens:
+                false_negative += 1
+    try:
+        precision = true_positive / (true_positive + false_positive)
+        recall = true_positive / (true_positive + false_negative)
+        f1 = 2 * precision * recall / (precision + recall)
+    except ZeroDivisionError:
+        precision, recall, f1 = 0, 0, 0
+    return precision, recall, f1
+
+def correct_count(out, label):
+    predicted = out.max(1, keepdim=True)[1]
+    n_correct = predicted.eq(label.view_as(predicted)).sum()
+    return n_correct
 
 def save_history(history):
     for metric, values in history.items():

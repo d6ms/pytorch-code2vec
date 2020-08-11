@@ -1,4 +1,5 @@
 import random
+from collections import deque
 from typing import Iterable
 
 import torch
@@ -38,6 +39,7 @@ class BatchDataLoader(object):
         self.word_vocab = word_vocab
         self.path_vocab = path_vocab
         self.label_vocab = label_vocab
+        self.chunks = deque()
 
     def __iter__(self):
         self.data = self.__generator()
@@ -53,8 +55,13 @@ class BatchDataLoader(object):
                 yield line.rstrip()
 
     def __next_batch_samples(self):
+        if len(self.chunks) == 0:
+            self.__load_chunks()
+        return self.chunks.popleft()
+    
+    def __load_chunks(self):
         samples = []
-        for _ in range(config.BATCH_SIZE):
+        for _ in range(config.BATCH_SIZE * config.CHUNK_SIZE):
             line = self.data.__next__()
 
             # parse line
@@ -67,9 +74,17 @@ class BatchDataLoader(object):
             ast_ctxs += [['<pad>', '<pad>', '<pad>']] * (config.MAX_LENGTH - n_ctxs)
 
             samples.append((method_name, ast_ctxs, n_ctxs))
-
+        
+        # batch_size * chunk_size 個のデータをfetchしてからshuffleする
         random.shuffle(samples)
-        return samples
+
+        # batch_size ごとの chunk に分割して queue に追加
+        num_chunks = config.CHUNK_SIZE
+        if len(samples) < config.BATCH_SIZE * config.CHUNK_SIZE:
+            num_chunks -= 1
+        for i in range(num_chunks):
+            chunk = samples[i * config.BATCH_SIZE: (i + 1) * config.BATCH_SIZE]
+            self.chunks.append(chunk)
 
     def __tensorize(self, samples):
         label = torch.zeros(config.BATCH_SIZE).long()

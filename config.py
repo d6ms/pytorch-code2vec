@@ -6,6 +6,7 @@ import torch
 EMBEDDING_DIM = 128
 DROPOUT = 0.25
 BATCH_SIZE = 1024
+CHUNK_SIZE = 10
 MAX_LENGTH = 200
 
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
