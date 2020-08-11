@@ -52,7 +52,7 @@ def train_epoch(model, optimizer, loss_fn, dataloader, epoch_idx, label_vocab, a
         label, x_s, path, x_t = label.to(config.DEVICE), x_s.to(config.DEVICE), path.to(config.DEVICE), x_t.to(config.DEVICE)
 
         optimizer.zero_grad()
-        out = model(x_s, path, x_t)
+        out, _ = model(x_s, path, x_t)
         loss = loss_fn(out, label)
         accuracy = compute_accuracy(out, label)
         precision, recall, f1 = compute_f1(out, label, label_vocab)
@@ -73,7 +73,7 @@ def evaluate(model, history, loss_fn, dataloader, epoch_idx, label_vocab):
         for i, (label, x_s, path, x_t, mask) in enumerate(dataloader, 1):
             label, x_s, path, x_t = label.to(config.DEVICE), x_s.to(config.DEVICE), path.to(config.DEVICE), x_t.to(config.DEVICE)
 
-            out = model(x_s, path, x_t)
+            out, _ = model(x_s, path, x_t)
             loss = loss_fn(out, label)
 
             data_cnt += label.shape[0]

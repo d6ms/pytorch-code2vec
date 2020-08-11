@@ -48,4 +48,5 @@ class Code2Vec(nn.Module):
 
         # ここまでで code vector (v) が計算できた
         # この後、訓練時は出力層のノード数に合わせて線形変換する必要がある
-        return self.out(v)  # output = [batch size, output dim]
+        output = self.out(v)  # output = [batch size, output dim]
+        return output, v

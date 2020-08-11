@@ -15,9 +15,13 @@ def predict(filename: str, model_path: str):
 
     for _, ctxs in extract(filename):
         x_s, path, x_t = tensorize(ctxs, word_vocab, path_vocab)
-        out = model(x_s, path, x_t).squeeze(0)
-        predicted = label_vocab.lookup_word(int(out.argmax()))
-        print(predicted)
+        out, code_vector = model(x_s, path, x_t)
+        print('code vector', code_vector.squeeze(0))
+        for idx in torch.topk(out.squeeze(0), k=6)[1]:
+            if idx == 0:
+                continue
+            predicted = label_vocab.lookup_word(int(idx))
+            print(predicted)
 
 def extract(filename):
     command = ['java', '-cp', config.JAR_PATH, 'JavaExtractor.App', '--max_path_length', str(config.MAX_PATH_LENGTH), '--max_path_width', str(config.MAX_PATH_WIDTH), '--file', filename, '--no_hash']
