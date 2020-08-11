@@ -1,7 +1,6 @@
 import logging
 
 import numpy as np
-import pickle
 import torch
 from torch.optim import Adam
 from torch.nn import CrossEntropyLoss
@@ -13,20 +12,14 @@ matplotlib.use('Agg')
 
 import config
 from models import Code2Vec
-from data import BatchDataLoader, Vocabulary
+from data import BatchDataLoader, load_vocabularies
 
 
 def train(epochs, lr=0.001):
     logging.info('start training')
 
     # prepare dataloaders
-    with open(f'{config.DATA_PATH}/java14m.dict.c2v', 'rb') as f:
-        word2count = pickle.load(f)
-        path2count = pickle.load(f)
-        label2count = pickle.load(f)
-    word_vocab = Vocabulary(word2count.keys())
-    path_vocab = Vocabulary(path2count.keys())
-    label_vocab = Vocabulary(label2count.keys())
+    word_vocab, path_vocab, label_vocab = load_vocabularies()
     trainloader = BatchDataLoader(f'{config.DATA_PATH}/java14m.train.c2v', word_vocab, path_vocab, label_vocab)
     evalloader = BatchDataLoader(f'{config.DATA_PATH}/java14m.test.c2v', word_vocab, path_vocab, label_vocab)
 
@@ -37,15 +30,14 @@ def train(epochs, lr=0.001):
 
     # train
     history = {'eval_loss': list(), 'eval_acc': list(), 'eval_precision': list(), 'eval_recall': list(), 'eval_f1': list()}
+    def after_batch(batch_idx):
+        if batch_idx % config.SAVE_EVERY == 0:
+            evaluate(model, history, loss_fn, evalloader, epoch, label_vocab)
+            if (batch_idx == config.SAVE_EVERY and epoch == 1) or history['eval_acc'][-1] > max(history['eval_acc'][:-1]):
+                torch.save(model.state_dict(), f'{config.MODEL_PATH}/code2vec.ckpt')
+            save_history(history)
+            model.train()
     for epoch in range(1, epochs + 1):
-        def after_batch(batch_idx):
-            if batch_idx % 1000 == 0:
-                evaluate(model, history, loss_fn, evalloader, epoch, label_vocab)
-                if (batch_idx == 1000 and epoch == 1) or history['eval_acc'][-1] > max(history['eval_acc'][:-1]):
-                    torch.save(model.state_dict(), f'{config.MODEL_PATH}/code2vec.ckpt')
-                save_history(history)
-                model.train()
-
         train_epoch(model, optimizer, loss_fn, trainloader, epoch, label_vocab, after_batch_callback=after_batch)
         evaluate(model, history, loss_fn, evalloader, epoch, label_vocab)
 

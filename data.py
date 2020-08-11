@@ -3,6 +3,7 @@ from collections import deque
 from typing import Iterable
 
 import torch
+import pickle
 
 import config
 
@@ -104,3 +105,13 @@ class BatchDataLoader(object):
             mask[i, n_ctxs:] = 0
 
         return label, x_s, path, x_t, mask
+
+def load_vocabularies():
+    with open(f'{config.DATA_PATH}/java14m.dict.c2v', 'rb') as f:
+        word2count = pickle.load(f)
+        path2count = pickle.load(f)
+        label2count = pickle.load(f)
+    word_vocab = Vocabulary(word2count.keys())
+    path_vocab = Vocabulary(path2count.keys())
+    label_vocab = Vocabulary(label2count.keys())
+    return word_vocab, path_vocab, label_vocab
