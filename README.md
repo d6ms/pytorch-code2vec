@@ -1,4 +1,4 @@
-## train
+## Code2Vec reproduction in PyTorch
 
 prepare datasets
 
@@ -8,6 +8,8 @@ $ wget https://s3.amazonaws.com/code2vec/data/java14m_data.tar.gz
 $ tar -xvzf java14m_data.tar.gz
 $ mv java14m data
 ```
+
+## train
 
 for local testing
 
