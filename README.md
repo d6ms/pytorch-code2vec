@@ -26,3 +26,8 @@ $ nohup python code2vec.py --train &
 ```
 $ wget https://github.com/tech-srl/code2vec/raw/master/JavaExtractor/JPredict/target/JavaExtractor-0.0.1-SNAPSHOT.jar
 ```
+
+```
+$ python code2vec --predict
+$ python code2vec --predict --file Hoge.java --model hoge.ckpt
+```
