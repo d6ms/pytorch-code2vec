@@ -1,4 +1,5 @@
 import subprocess
+import random
 from typing import List
 
 import torch
@@ -32,7 +33,8 @@ def extract(filename):
         yield method_name, ctxs
 
 def tensorize(ctxs: List[str], word_vocab: Vocabulary, path_vocab: Vocabulary):
-    ctxs = ctxs[:config.MAX_LENGTH]
+    if len(ctxs) > config.MAX_LENGTH:
+        ctxs = random.sample(ctxs, config.MAX_LENGTH)
     x_s, path, x_t = [0] * config.MAX_LENGTH, [0] * config.MAX_LENGTH, [0] * config.MAX_LENGTH
     for i in range(config.MAX_LENGTH):
         if i < len(ctxs):

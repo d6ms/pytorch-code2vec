@@ -2,6 +2,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+NINF = -3.4 * 10 ** 38  # -INF
+PAD = 1
 
 class Code2Vec(nn.Module):
 
@@ -35,9 +37,10 @@ class Code2Vec(nn.Module):
         # c = [batch size, max length, embedding dim]
 
         # Attention weight の計算
-        a = self.a.repeat(batch_size, 1, 1)  # batch_size 分だけ複製する
-        # a = [batch size, embedding dim, 1]
-        a = F.softmax(torch.bmm(c, a).squeeze(2), dim=1).unsqueeze(2)
+        a = self.a.repeat(batch_size, 1, 1)  # batch_size 分だけ複製する a = [batch size, embedding dim, 1]
+        a = torch.bmm(c, a).squeeze(2)  # a = [batch size, max length]
+        a = a + ((x_s == PAD).float() * NINF)  # <pad> 部分の softmax 結果を0にするために，事前に-INFにしておく
+        a = F.softmax(a, dim=1).unsqueeze(2)
         # a = [batch size, max length, 1]
 
         # Code vector の計算
