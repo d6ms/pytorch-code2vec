@@ -20,8 +20,9 @@ def train(epochs, lr=0.001):
 
     # prepare dataloaders
     word_vocab, path_vocab, label_vocab = load_vocabularies()
-    trainloader = BatchDataLoader(f'{config.DATA_PATH}/java14m.train.c2v', word_vocab, path_vocab, label_vocab)
-    evalloader = BatchDataLoader(f'{config.DATA_PATH}/java14m.test.c2v', word_vocab, path_vocab, label_vocab)
+    trainloader = BatchDataLoader(f'{config.DATA_PATH}/java-large.train.sub.c2v', word_vocab, path_vocab, label_vocab)
+    evalloader = BatchDataLoader(f'{config.DATA_PATH}/java-large.val.sub.c2v', word_vocab, path_vocab, label_vocab)
+    logging.info(f'trains over {len(trainloader)} batches, evaluates over {len(evalloader)} batches')
 
     # train settings
     model = Code2Vec(len(word_vocab), len(path_vocab), config.EMBEDDING_DIM, len(label_vocab), config.DROPOUT).to(config.DEVICE)
@@ -30,28 +31,27 @@ def train(epochs, lr=0.001):
 
     # train
     history = {'eval_loss': list(), 'eval_acc': list(), 'eval_precision': list(), 'eval_recall': list(), 'eval_f1': list()}
-    def after_batch(batch_idx):
-        if batch_idx % config.SAVE_EVERY == 0:
+    def after_batch(epoch, batch_idx):
+        if batch_idx % config.SAVE_EVERY == 0 or batch_idx == len(trainloader):
             evaluate(model, history, loss_fn, evalloader, epoch, label_vocab)
-            if (batch_idx == config.SAVE_EVERY and epoch == 1) or history['eval_acc'][-1] > max(history['eval_acc'][:-1]):
+            if len(history['eval_f1']) == 1 or history['eval_f1'][-1] > max(history['eval_f1'][:-1]):
                 torch.save(model.state_dict(), f'{config.MODEL_PATH}/code2vec.ckpt')
+                logging.info(f'[epoch {epoch}] model saved')
             save_history(history)
-            model.train()
     for epoch in range(1, epochs + 1):
         train_epoch(model, optimizer, loss_fn, trainloader, epoch, label_vocab, after_batch_callback=after_batch)
-        evaluate(model, history, loss_fn, evalloader, epoch, label_vocab)
 
 def train_epoch(model, optimizer, loss_fn, dataloader, epoch_idx, label_vocab, after_batch_callback=None):
-    model.train()
-    for i, (label, x_s, path, x_t, mask) in enumerate(dataloader, 1):
+    for i, (label, x_s, path, x_t) in enumerate(dataloader, 1):
         # label: 正解ラベルのメソッド名を示すindex (batch_size,)
         # x_s : ASTコンテキストの始点ラベルを示すindex (batch_size, max_length)
         # path: ASTパスのhashラベルを示すindex (batch_size, max_length)
         # x_t : ASTコンテキストの終点ラベルを示すindex (batch_size, max_length)
-        # mask: axis-1 のサイズを max_length に合わせるためにパディングした箇所は 1 (batch_size, max_length)
         label, x_s, path, x_t = label.to(config.DEVICE), x_s.to(config.DEVICE), path.to(config.DEVICE), x_t.to(config.DEVICE)
 
+        model.train()
         optimizer.zero_grad()
+
         out, _ = model(x_s, path, x_t)
         loss = loss_fn(out, label)
         accuracy = compute_accuracy(out, label)
@@ -63,14 +63,14 @@ def train_epoch(model, optimizer, loss_fn, dataloader, epoch_idx, label_vocab, a
         logging.info(f'[epoch {epoch_idx} batch {i}] loss: {loss.item()}, accuracy: {accuracy}, precision: {precision}, recall: {recall}, f1: {f1}')
 
         if after_batch_callback is not None:
-            after_batch_callback(i)
+            after_batch_callback(epoch_idx, i)
 
 def evaluate(model, history, loss_fn, dataloader, epoch_idx, label_vocab):
     model.eval()
 
     total_loss, total_acc, total_precision, total_recall, total_f1, batch_cnt, data_cnt = 0, 0, 0, 0, 0, 0, 0
     with torch.no_grad():
-        for i, (label, x_s, path, x_t, mask) in enumerate(dataloader, 1):
+        for i, (label, x_s, path, x_t) in enumerate(dataloader, 1):
             label, x_s, path, x_t = label.to(config.DEVICE), x_s.to(config.DEVICE), path.to(config.DEVICE), x_t.to(config.DEVICE)
 
             out, _ = model(x_s, path, x_t)

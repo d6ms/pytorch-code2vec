@@ -41,6 +41,11 @@ class BatchDataLoader(object):
         self.path_vocab = path_vocab
         self.label_vocab = label_vocab
         self.chunks = deque()
+        with open(data_path, mode='r') as f:
+            self.n_data = sum(1 for _ in f)
+
+    def __len__(self):
+        return self.n_data // config.BATCH_SIZE
 
     def __iter__(self):
         self.data = self.__generator()
@@ -92,7 +97,6 @@ class BatchDataLoader(object):
         x_s = torch.zeros((config.BATCH_SIZE, config.MAX_LENGTH)).long()
         path = torch.zeros((config.BATCH_SIZE, config.MAX_LENGTH)).long()
         x_t = torch.zeros((config.BATCH_SIZE, config.MAX_LENGTH)).long()
-        mask = torch.ones((config.BATCH_SIZE, config.MAX_LENGTH)).float()
 
         for i, (method_name, ctxs, n_ctxs) in enumerate(samples):
             label[i] = self.label_vocab.lookup_idx(method_name)
@@ -102,12 +106,11 @@ class BatchDataLoader(object):
                 self.word_vocab.lookup_idx(t)
             ) for s, p, t in ctxs])
             x_s[i, :], path[i, :], x_t[i, :] = torch.LongTensor(tmp_x_s), torch.LongTensor(tmp_path), torch.LongTensor(tmp_x_t)
-            mask[i, n_ctxs:] = 0
 
-        return label, x_s, path, x_t, mask
+        return label, x_s, path, x_t
 
 def load_vocabularies():
-    with open(f'{config.DATA_PATH}/java14m.dict.c2v', 'rb') as f:
+    with open(f'{config.DATA_PATH}/java-large.dict.c2v', 'rb') as f:
         word2count = pickle.load(f)
         path2count = pickle.load(f)
         label2count = pickle.load(f)
