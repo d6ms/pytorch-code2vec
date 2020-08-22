@@ -20,8 +20,8 @@ def train(epochs, lr=0.001):
 
     # prepare dataloaders
     word_vocab, path_vocab, label_vocab = load_vocabularies()
-    trainloader = BatchDataLoader(f'{config.DATA_PATH}/java-large.train.sub.c2v', word_vocab, path_vocab, label_vocab)
-    evalloader = BatchDataLoader(f'{config.DATA_PATH}/java-large.val.sub.c2v', word_vocab, path_vocab, label_vocab)
+    trainloader = BatchDataLoader(f'{config.DATA_PATH}/java-large.train.c2v', word_vocab, path_vocab, label_vocab)
+    evalloader = BatchDataLoader(f'{config.DATA_PATH}/java-large.val.c2v', word_vocab, path_vocab, label_vocab)
     logging.info(f'trains over {len(trainloader)} batches, evaluates over {len(evalloader)} batches')
 
     # train settings
