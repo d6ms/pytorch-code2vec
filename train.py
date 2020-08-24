@@ -25,7 +25,7 @@ def train(epochs, lr=0.001):
     logging.info(f'trains over {len(trainloader)} batches, evaluates over {len(evalloader)} batches')
 
     # train settings
-    model = Code2Vec(len(word_vocab), len(path_vocab), config.EMBEDDING_DIM, len(label_vocab), config.DROPOUT).to(config.DEVICE)
+    model = Code2Vec(len(word_vocab), len(path_vocab), len(label_vocab), config.EMBEDDING_DIM, config.EMBEDDING_DIM * 3, config.DROPOUT).to(config.DEVICE)
     optimizer = Adam(model.parameters(), lr=lr)
     loss_fn = CrossEntropyLoss().to(config.DEVICE)
 
@@ -35,6 +35,7 @@ def train(epochs, lr=0.001):
         if batch_idx % config.SAVE_EVERY == 0 or batch_idx == len(trainloader):
             evaluate(model, history, loss_fn, evalloader, epoch, label_vocab)
             if len(history['eval_f1']) == 1 or history['eval_f1'][-1] > max(history['eval_f1'][:-1]):
+                torch.save(model.encoder.state_dict(), f'{config.MODEL_PATH}/encoder.ckpt')
                 torch.save(model.state_dict(), f'{config.MODEL_PATH}/code2vec.ckpt')
                 logging.info(f'[epoch {epoch}] model saved')
             save_history(history)
