@@ -12,16 +12,16 @@ matplotlib.use('Agg')
 
 import config
 from models import Code2Vec
-from data import BatchDataLoader, load_vocabularies
+from data import Code2VecBatchDataLoader, load_vocabularies
 
 
 def train(epochs, lr=0.001):
     logging.info('start training')
 
     # prepare dataloaders
-    word_vocab, path_vocab, label_vocab = load_vocabularies()
-    trainloader = BatchDataLoader(f'{config.DATA_PATH}/java-large.train.c2v', word_vocab, path_vocab, label_vocab)
-    evalloader = BatchDataLoader(f'{config.DATA_PATH}/java-large.val.c2v', word_vocab, path_vocab, label_vocab)
+    word_vocab, path_vocab, label_vocab = load_vocabularies(f'{config.DATA_PATH}/java-large.dict.c2v')
+    trainloader = Code2VecBatchDataLoader(f'{config.DATA_PATH}/java-large.train.c2v', word_vocab, path_vocab, label_vocab)
+    evalloader = Code2VecBatchDataLoader(f'{config.DATA_PATH}/java-large.val.c2v', word_vocab, path_vocab, label_vocab)
     logging.info(f'trains over {len(trainloader)} batches, evaluates over {len(evalloader)} batches')
 
     # train settings
