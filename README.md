@@ -1,4 +1,3 @@
-## Code2Vec reproduction in PyTorch
 
 prepare datasets
 

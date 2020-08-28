@@ -119,9 +119,7 @@ class Code2SeqBatchDataLoader(object):
         self.label_vocab = label_vocab
         self.chunks = deque()
         with open(data_path, mode='r') as f:
-            # TODO fix
-            self.n_data = 100000
-            # self.n_data = sum(1 for _ in f)
+            self.n_data = sum(1 for _ in f)
 
     def __len__(self):
         return self.n_data // config.BATCH_SIZE

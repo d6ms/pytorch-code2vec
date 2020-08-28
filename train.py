@@ -11,21 +11,30 @@ from matplotlib import ticker
 matplotlib.use('Agg')
 
 import config
-from models import Code2Vec
-from data import Code2VecBatchDataLoader, load_vocabularies
+from models import Code2Vec, Code2VecEncoder, Code2SeqEncoder
+from data import Code2VecBatchDataLoader, Code2SeqBatchDataLoader, load_vocabularies
 
 
 def train(epochs, lr=0.001):
-    logging.info('start training')
+    logging.info(f'start training on {config.DEVICE}')
 
-    # prepare dataloaders
-    word_vocab, path_vocab, label_vocab = load_vocabularies(f'{config.DATA_PATH}/java-large.dict.c2v')
-    trainloader = Code2VecBatchDataLoader(f'{config.DATA_PATH}/java-large.train.c2v', word_vocab, path_vocab, label_vocab)
-    evalloader = Code2VecBatchDataLoader(f'{config.DATA_PATH}/java-large.val.c2v', word_vocab, path_vocab, label_vocab)
-    logging.info(f'trains over {len(trainloader)} batches, evaluates over {len(evalloader)} batches')
+    if config.ENCODER_MODE == 'c2v':
+        word_vocab, path_vocab, label_vocab = load_vocabularies(f'{config.DATA_PATH}/java-large.dict.c2v')
+        trainloader = Code2VecBatchDataLoader(f'{config.DATA_PATH}/java-large.train.c2v', word_vocab, path_vocab, label_vocab)
+        evalloader = Code2VecBatchDataLoader(f'{config.DATA_PATH}/java-large.val.c2v', word_vocab, path_vocab, label_vocab)
+        logging.info(f'trains over {len(trainloader)} batches, evaluates over {len(evalloader)} batches')
+        encoder = Code2VecEncoder(len(word_vocab), len(path_vocab), config.EMBEDDING_DIM, config.CODE_VEC_DIM, config.DROPOUT)
+
+    elif config.ENCODER_MODE == 'c2s':
+        word_vocab, path_vocab, _ = load_vocabularies(f'{config.DATA_PATH}/java-large.dict.c2s')
+        _, _, label_vocab = load_vocabularies(f'{config.DATA_PATH}/java-large.dict.c2v')
+        trainloader = Code2SeqBatchDataLoader(f'{config.DATA_PATH}/java-large.train.c2s', word_vocab, path_vocab, label_vocab)
+        evalloader = Code2SeqBatchDataLoader(f'{config.DATA_PATH}/java-large.val.c2s', word_vocab, path_vocab, label_vocab)
+        logging.info(f'trains over {len(trainloader)} batches, evaluates over {len(evalloader)} batches')
+        encoder = Code2SeqEncoder(len(word_vocab), len(path_vocab), config.EMBEDDING_DIM, config.CODE_VEC_DIM, config.DROPOUT, config.RNN_DROPOUT)
 
     # train settings
-    model = Code2Vec(len(word_vocab), len(path_vocab), len(label_vocab), config.EMBEDDING_DIM, config.EMBEDDING_DIM * 3, config.DROPOUT).to(config.DEVICE)
+    model = Code2Vec(encoder, config.CODE_VEC_DIM, len(label_vocab)).to(config.DEVICE)
     optimizer = Adam(model.parameters(), lr=lr)
     loss_fn = CrossEntropyLoss().to(config.DEVICE)
 
@@ -35,7 +44,7 @@ def train(epochs, lr=0.001):
         if batch_idx % config.SAVE_EVERY == 0 or batch_idx == len(trainloader):
             evaluate(model, history, loss_fn, evalloader, epoch, label_vocab)
             if len(history['eval_f1']) == 1 or history['eval_f1'][-1] > max(history['eval_f1'][:-1]):
-                torch.save(model.encoder.state_dict(), f'{config.MODEL_PATH}/encoder.ckpt')
+                torch.save(model.encoder.state_dict(), f'{config.MODEL_PATH}/{config.ENCODER_MODE}-encoder.ckpt')
                 torch.save(model.state_dict(), f'{config.MODEL_PATH}/code2vec.ckpt')
                 logging.info(f'[epoch {epoch}] model saved')
             save_history(history)

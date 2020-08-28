@@ -4,7 +4,9 @@ import os
 import torch
 
 # train configurations
+ENCODER_MODE = 'c2v'  # 'c2v' for code2vec model, 'c2s' for code2seq
 EMBEDDING_DIM = 128
+CODE_VEC_DIM = EMBEDDING_DIM * 3
 DROPOUT = 0.25
 BATCH_SIZE = 1024
 CHUNK_SIZE = 10

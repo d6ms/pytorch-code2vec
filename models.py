@@ -111,9 +111,9 @@ class Code2SeqEncoder(nn.Module):
 
 class Code2Vec(nn.Module):
 
-    def __init__(self, word_vocab_size, path_vocab_size, label_vocab_size, embedding_dim, code_vec_dim, dropout):
+    def __init__(self, encoder, code_vec_dim, label_vocab_size):
         super(Code2Vec, self).__init__()
-        self.encoder = Code2VecEncoder(word_vocab_size, path_vocab_size, embedding_dim, code_vec_dim, dropout)
+        self.encoder = encoder
         self.out = nn.Linear(code_vec_dim, label_vocab_size)
 
     def forward(self, x_s, path, x_t):
