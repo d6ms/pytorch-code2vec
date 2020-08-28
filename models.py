@@ -50,9 +50,10 @@ class Code2SeqEncoder(nn.Module):
 
     def __init__(self, word_vocab_size, path_vocab_size, embedding_dim, code_vec_dim, dropout, rnn_dropout):
         super(Code2SeqEncoder, self).__init__()
-        # TODO word embedding, path embedding は uniform で初期化する
         self.word_embedding = nn.Embedding(word_vocab_size, embedding_dim)
         self.path_embedding = nn.Embedding(path_vocab_size, embedding_dim)
+        self.word_embedding.weight.data.uniform_(-1, 1)
+        self.path_embedding.weight.data.uniform_(-1, 1)
         self.bilstm = nn.LSTM(embedding_dim, embedding_dim, batch_first=True, bidirectional=True, num_layers=1)  # TODO , dropout=rnn_dropout)
         self.dropout = nn.Dropout(dropout)
         self.fc = nn.Linear(embedding_dim * 4, code_vec_dim, bias=False)
